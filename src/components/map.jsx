@@ -1,7 +1,5 @@
+import paper from 'paper';
 import React, { Component } from 'react';
-import paper, { Point, PointText, Path } from 'paper';
-import { VoronoiES6 } from 'classes/VoronoiES6';
-import { DISPLAY_COLORS } from 'constants/DISPLAY_COLORS';
 import { constants } from './../constants/constants';
 import { Island } from './../js/Island';
 

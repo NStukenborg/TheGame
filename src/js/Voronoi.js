@@ -367,7 +367,7 @@ Voronoi.prototype.Cell.prototype.getBbox = function() {
 		f,
 		e;
 	while (d--) {
-		h = i[d].getStartpoint();
+		h = i[d].getStartPoint();
 		f = h.x;
 		e = h.y;
 		if (f < a) {
@@ -394,7 +394,7 @@ Voronoi.prototype.Cell.prototype.pointIntersection = function(a, h) {
 		d;
 	while (c--) {
 		f = b[c];
-		g = f.getStartpoint();
+		g = f.getStartPoint();
 		e = f.getEndpoint();
 		d = (h - g.y) * (e.x - g.x) - (a - g.x) * (e.y - g.y);
 		if (!d) {
@@ -432,7 +432,7 @@ Voronoi.prototype.Halfedge = function(d, e, a) {
 Voronoi.prototype.createHalfedge = function(b, c, a) {
 	return new this.Halfedge(b, c, a);
 };
-Voronoi.prototype.Halfedge.prototype.getStartpoint = function() {
+Voronoi.prototype.Halfedge.prototype.getStartPoint = function() {
 	return this.edge.lSite === this.site ? this.edge.va : this.edge.vb;
 };
 Voronoi.prototype.Halfedge.prototype.getEndpoint = function() {
@@ -1015,7 +1015,7 @@ Voronoi.prototype.closeCells = function(p) {
 		e = 0;
 		while (e < c) {
 			l = o[e].getEndpoint();
-			i = o[(e + 1) % c].getStartpoint();
+			i = o[(e + 1) % c].getStartPoint();
 			if (h(l.x - i.x) >= 1e-9 || h(l.y - i.y) >= 1e-9) {
 				switch (true) {
 					case this.equalWithEpsilon(l.x, g) &&

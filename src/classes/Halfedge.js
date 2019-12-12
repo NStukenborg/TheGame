@@ -13,7 +13,7 @@ export class Halfedge {
 					: Math.atan2(c.x - b.x, b.y - c.y);
 		}
 	}
-	getStartpoint = function() {
+	getStartPoint = function() {
 		return this.edge.lSite === this.site ? this.edge.va : this.edge.vb;
 	};
 	getEndpoint = function() {

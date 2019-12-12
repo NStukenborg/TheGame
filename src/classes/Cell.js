@@ -59,7 +59,7 @@ export class Cell {
 			f,
 			e;
 		while (d--) {
-			h = i[d].getStartpoint();
+			h = i[d].getStartPoint();
 			f = h.x;
 			e = h.y;
 			if (f < a) {
@@ -86,7 +86,7 @@ export class Cell {
 			d;
 		while (c--) {
 			f = b[c];
-			g = f.getStartpoint();
+			g = f.getStartPoint();
 			e = f.getEndpoint();
 			d = (h - g.y) * (e.x - g.x) - (a - g.x) * (e.y - g.y);
 			if (!d) {

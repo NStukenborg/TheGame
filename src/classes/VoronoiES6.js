@@ -631,7 +631,7 @@ export class VoronoiES6 {
 			e = 0;
 			while (e < c) {
 				l = o[e].getEndpoint();
-				i = o[(e + 1) % c].getStartpoint();
+				i = o[(e + 1) % c].getStartPoint();
 				if (h(l.x - i.x) >= 1e-9 || h(l.y - i.y) >= 1e-9) {
 					switch (true) {
 						case this.equalWithEpsilon(l.x, g) &&
