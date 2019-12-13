@@ -59,20 +59,6 @@ import { getRealElevation } from './IslandFunctions';
 import { getRandomInt } from './IslandFunctions';
 import { perlin } from './perlin';
 
-// define([
-// 	'jquery',
-
-// 	//constants
-// 	//functions
-// 	'game/islandFunctions',
-// 	//objects
-// 	'game/cellGroup',
-
-// 	'library/perlin',
-// 	'dojo/topic',
-// 	'paper',
-// 	'voroniCore',
-// ],
 export class Island {
 	constructor() {
 		this.subscriptions = {};
@@ -131,7 +117,6 @@ export class Island {
 			lakes: new CellGroup(),
 			other: new CellGroup(),
 		};
-
 		this.assignOceanCoastAndLand();
 		this.assignRivers();
 		this.assignMoisture();
@@ -144,15 +129,15 @@ export class Island {
 		this.render();
 	};
 	getSelectedCell = function(point, realDim) {
-		var scale = constants.DIM / realDim; //adjust for possible zoom changes
+		const scale = constants.DIM / realDim; //adjust for possible zoom changes
 		point.x = point.x * scale;
 		point.y = point.y * scale;
 
 		if (point.x < constants.DIM && point.y < constants.DIM) {
-			var closest;
-			this.diagram.cells.forEach(function(index, cell) {
-				var x = cell.site.x;
-				var y = cell.site.y;
+			let closest;
+			this.diagram.cells.forEach((cell) => {
+				const x = cell.site.x;
+				const y = cell.site.y;
 				if (
 					Math.abs(x - point.x) < this.delta / 2 &&
 					Math.abs(y - point.y) < this.delta / 2
@@ -172,28 +157,28 @@ export class Island {
 		}
 	};
 	highlightGroup = function(cell, context) {
-		var id = cell.site.voronoiId;
-		var array;
+		const id = cell.site.voronoiId;
+		let array;
 		if (context === 'all') {
-			this.diagram.cellGroups.forEach(function(index, group) {
+			this.diagram.cellGroups.forEach((group) => {
 				if (group.ids.indexOf(id) !== -1) {
 					array = group;
 				}
 			});
-			this.territories.forEach(function(index, group) {
+			this.territories.forEach((group) => {
 				if (group.ids.indexOf(id) !== -1) {
 					array = group;
 				}
 			});
-		} else if (context == 'adj') {
-			this.city.neighbors.forEach(function(index, groupId) {
-				var group = this.territories[groupId];
-				if (group.ids.indexOf(id) != -1) {
+		} else if (context === 'adj') {
+			this.city.neighbors.forEach((groupId) => {
+				let group = this.territories[groupId];
+				if (group.ids.indexOf(id) !== -1) {
 					array = group;
 				}
 			});
 		}
-		if (array != undefined) {
+		if (!array) {
 			this.highlightLayer.activate();
 			this.highlightLayer.removeChildren();
 			renderBorder(array, constants.HIGHLIGHT, 2, true);
@@ -226,8 +211,8 @@ export class Island {
 	};
 	addGroupToCity = function(cell) {
 		console.info('AddGroupToCity');
-		var groupId = this.cellIndex[cell.site.voronoiId];
-		var group = this.territories[groupId];
+		const groupId = this.cellIndex[cell.site.voronoiId];
+		const group = this.territories[groupId];
 		console.info(group);
 		console.info(this.city);
 
@@ -235,10 +220,10 @@ export class Island {
 		paper.view.draw();
 	};
 	randomSites = () => {
-		var order = getCharOrder();
-		var sites = [];
+		const order = getCharOrder();
+		let sites = [];
 
-		var mLocs = [];
+		let mLocs = [];
 		// create vertices
 		this.delta = constants.DIM / (constants.CELL_WIDTH - 1);
 		this.nbSites =
@@ -248,18 +233,26 @@ export class Island {
 		if (constants.CELL_WIDTH % 2 === 1) {
 			this.nbSites += constants.CELL_WIDTH;
 		}
-		var x = 0;
-		var y = 0;
+		let x = 0;
+		let y = 0;
 		for (let i = 0; i < this.nbSites; i++) {
-			var curX = Math.max(
+			const curX = Math.max(
 				Math.min(Math.round(x * this.delta), constants.DIM),
 				0,
 			);
-			var curY = Math.max(
+			const curY = Math.max(
 				Math.min(Math.round(y * this.delta), constants.DIM),
 				0,
 			);
-			var type = decideBorderValue(this.delta, curX, curY, order, x, y, mLocs);
+			const type = decideBorderValue(
+				this.delta,
+				curX,
+				curY,
+				order,
+				x,
+				y,
+				mLocs,
+			);
 			sites.push({
 				x: curX,
 				y: curY,
@@ -294,48 +287,46 @@ export class Island {
 	};
 
 	assignOceanCoastAndLand = () => {
-		var queue = [];
+		let queue = [];
 		// find border cells and add them to the queue to deal with neighbors
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
-
+		this.diagram.cells.forEach((cell) => {
 			cell.elevation = getElevation(cell.site, this.mPoint, this.myPerlin);
 			cell.water = cell.elevation <= 0;
-			var numWater = 0;
-			for (var j = 0; j < cell.halfedges.length; j++) {
-				var hedge = cell.halfedges[j];
+
+			cell.halfedges.forEach((hedge) => {
 				// border
 				if (hedge.edge.rSite == null) {
 					cell.border = true; // if one of this cell's adjoining cells is null, it is a border cell and this sets it to ocean, impassM, or impassD
 					cell.outside = true;
-					if (cell.site.v == 'M') {
+					if (cell.site.v === 'M') {
 						setM(cell);
-					} else if (cell.site.v == 'D') {
+					} else if (cell.site.v === 'D') {
 						setD(cell);
 					} else {
 						setO(cell);
 					}
 					queue.push(cell);
 				}
-			}
-		}
+			});
+		});
 
 		// impass
 		while (queue.length > 0) {
-			var cell = queue.shift(); // aka pop();
-			var neighbors = cell.getNeighborIds();
-			for (var i = 0; i < neighbors.length; i++) {
-				var nId = neighbors[i];
-				var neighbor = this.diagram.cells[nId];
+			let cell = queue.shift(); // aka pop();
+			let neighbors = cell.getNeighborIds();
+			for (let i = 0; i < neighbors.length; i++) {
+				const nId = neighbors[i];
+				const neighbor = this.diagram.cells[nId];
 				if (cell.border) {
 					neighbor.outside = true;
 				}
-				var processed = neighbor.ocean || neighbor.impassM || neighbor.impassD;
-				if (processed == undefined) {
+				const processed =
+					neighbor.ocean || neighbor.impassM || neighbor.impassD;
+				if (!processed) {
 					if (neighbor.water || neighbor.outside) {
-						if (neighbor.site.v == 'M') {
+						if (neighbor.site.v === 'M') {
 							setM(neighbor);
-						} else if (neighbor.site.v == 'D') {
+						} else if (neighbor.site.v === 'D') {
 							setD(neighbor);
 						} else {
 							setO(neighbor);
@@ -347,21 +338,19 @@ export class Island {
 		}
 
 		// coast
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
-			var numOcean = 0;
-			var numImpass = 0;
-			var neighbors = cell.getNeighborIds();
-			for (var j = 0; j < neighbors.length; j++) {
-				var nId = neighbors[j];
-				var neighbor = this.diagram.cells[nId];
+		this.diagram.cells.forEach((cell) => {
+			let numOcean = 0;
+			let numImpass = 0;
+			let neighbors = cell.getNeighborIds();
+			console.log(neighbors);
+			neighbors.forEach((neighbor) => {
 				if (neighbor.ocean) {
 					numOcean++;
 				}
 				if (neighbor.impassD || neighbor.impassM) {
 					numImpass++;
 				}
-			}
+			});
 			cell.numOcean = numOcean;
 			cell.coast = numOcean > 0 && !cell.water;
 			cell.beach =
@@ -369,20 +358,19 @@ export class Island {
 				cell.elevation < constants.CLIFF_THRESHOLD &&
 				!cell.impassD &&
 				!cell.impassM;
-		}
+		});
 
 		// cliff
-		for (var i = 0; i < this.diagram.edges.length; i++) {
-			var edge = this.diagram.edges[i];
+		this.diagram.edges.forEach((edge) => {
 			if (edge.lSite != null && edge.rSite != null) {
-				var lCell = this.diagram.cells[edge.lSite.voronoiId];
-				var rCell = this.diagram.cells[edge.rSite.voronoiId];
+				const lCell = this.diagram.cells[edge.lSite.voronoiId];
+				const rCell = this.diagram.cells[edge.rSite.voronoiId];
 				edge.cliff =
 					!(lCell.water && rCell.water) &&
 					Math.abs(getRealElevation(lCell) - getRealElevation(rCell)) >=
 						constants.CLIFF_THRESHOLD;
 			}
-		}
+		});
 	};
 	render = () => {
 		if (!this.diagram) {
@@ -394,8 +382,8 @@ export class Island {
 		paper.view.draw();
 	};
 	renderCells = () => {
-		for (var cellid in this.diagram.cells) {
-			var cell = this.diagram.cells[cellid];
+		for (const cellid in this.diagram.cells) {
+			const cell = this.diagram.cells[cellid];
 			this.cellsLayer.activate();
 			renderCell(cell, biomes[cell.biome.name].color, 1, true);
 			this.shadeLayer.activate();
@@ -403,8 +391,8 @@ export class Island {
 		}
 	};
 	getShadedCellColor = (cell) => {
-		var c = new paper.Color(biomes[cell.biome.name].color);
-		var shade = this.getShade(cell);
+		const c = new paper.Color(biomes[cell.biome.name].color);
+		const shade = this.getShade(cell);
 		c.brightness = c.brightness - shade;
 		return c;
 	};
@@ -417,13 +405,11 @@ export class Island {
 		} else if (cell.water) {
 			return 0;
 		} else {
-			var lowerCell = null;
-			var upperCell = null;
-			var neighbors = cell.getNeighborIds();
-			for (var j = 0; j < neighbors.length; j++) {
-				var nId = neighbors[j];
-				var neighbor = this.diagram.cells[nId];
-				var dElev = Math.abs(cell.elevation - neighbor.elevation);
+			let lowerCell = null;
+			let upperCell = null;
+			let neighbors = cell.getNeighborIds();
+			neighbors.forEach((neighbor) => {
+				const dElev = Math.abs(cell.elevation - neighbor.elevation);
 				if (dElev < constants.CLIFF_THRESHOLD) {
 					if (lowerCell == null || neighbor.elevation < lowerCell.elevation) {
 						lowerCell = neighbor;
@@ -432,20 +418,20 @@ export class Island {
 						upperCell = neighbor;
 					}
 				}
-			}
+			});
 			if (lowerCell != null && upperCell != null) {
-				var angleRadian = Math.atan2(
+				const angleRadian = Math.atan2(
 					upperCell.site.x - lowerCell.site.x,
 					upperCell.site.y - lowerCell.site.y,
 				);
-				var angleDegree = angleRadian * (180 / Math.PI);
-				var diffElevation =
+				const angleDegree = angleRadian * (180 / Math.PI);
+				let diffElevation =
 					getRealElevation(upperCell) - getRealElevation(lowerCell);
 
 				if (diffElevation + constants.SHADING < 1) {
 					diffElevation = diffElevation + constants.SHADING;
 				}
-				var mult = 1;
+				let mult = 1;
 				if (cell.impassD) {
 					mult = 0.5;
 				}
@@ -455,20 +441,21 @@ export class Island {
 			}
 		}
 	};
+
 	updateCity = (group) => {
 		this.city.cells = this.city.cells.concat(group.cells);
 		this.city.ids = this.city.ids.concat(group.ids);
 		delete this.city.edgePath;
 		this.city.setEdges();
 		for (const name in group.biomes) {
-			if (this.city.biomes[name] == undefined) {
+			if (!this.city.biomes[name]) {
 				this.city.biomes[name] = group.biomes[name];
 			} else {
 				this.city.biomes[name] += group.biomes[name];
 			}
 		}
 		delete this.territories[group.id];
-		group.ids.forEach((id, index) => {
+		group.ids.forEach((id) => {
 			delete this.cellIndex[id];
 		});
 		this.cityLayer.activate();
@@ -482,10 +469,11 @@ export class Island {
 			renderBorder(this.territories[groupId], constants.EDGE_COLOR, 1, true);
 		}
 	};
+
 	compute = (s) => {
 		this.sites = s;
 		this.voronoi.recycle(this.diagram);
-		var bbox = {
+		const bbox = {
 			xl: 0,
 			xr: constants.DIM,
 			yt: 0,
@@ -495,15 +483,14 @@ export class Island {
 	};
 
 	assignBiomes = () => {
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
+		this.diagram.cells.forEach((cell) => {
 			cell.biome = getBiome(cell);
-		}
+		});
 	};
 
 	assignRivers = () => {
-		for (var i = 0; i < this.nbSites / 50; ) {
-			var cell = this.diagram.cells[
+		for (let i = 0; i < this.nbSites / 50; ) {
+			const cell = this.diagram.cells[
 				getRandomInt(0, this.diagram.cells.length - 1)
 			];
 			if (!cell.coast && !cell.impassD) {
@@ -522,12 +509,11 @@ export class Island {
 			cell.riverSize = size;
 			if (!cell.impassD) {
 				//don't let the river carry on into the desert
-				var lowerCell = null;
-				var neighbors = cell.getNeighborIds();
+				let lowerCell = null;
+				const neighbors = cell.getNeighborIds();
 				// we choose the lowest neighbour cell :
-				for (var j = 0; j < neighbors.length; j++) {
-					var nId = neighbors[j];
-					var neighbor = this.diagram.cells[nId];
+				for (let j = 0; j < neighbors.length; j++) {
+					const neighbor = this.diagram.cells[neighbors[j]];
 					if (lowerCell == null || neighbor.elevation < lowerCell.elevation) {
 						lowerCell = neighbor;
 					}
@@ -549,7 +535,7 @@ export class Island {
 		} else if (cell.river) {
 			// we ended in another river, the river size increase :
 			cell.riverSize++;
-			var nextRiver = cell.nextRiver;
+			let nextRiver = cell.nextRiver;
 			while (nextRiver) {
 				nextRiver.riverSize++;
 				nextRiver = nextRiver.nextRiver;
@@ -1107,7 +1093,7 @@ function renderCell(cell, color, stroke, fill) {
 	if (fill) {
 		cellPath.fillColor = color;
 	}
-	var start = cell.halfedges[0].getStartpoint();
+	var start = cell.halfedges[0].getStartPoint();
 	cellPath.add(new Point(start.x, start.y));
 	for (var iHalfedge = 0; iHalfedge < cell.halfedges.length; iHalfedge++) {
 		var halfEdge = cell.halfedges[iHalfedge];

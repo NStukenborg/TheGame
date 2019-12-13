@@ -1,15 +1,21 @@
 import paper from 'paper';
 import React, { Component } from 'react';
 import { constants } from './../constants/constants';
-import { Island } from './../js/Island';
+import { GHIsland } from './../js/GHIsland';
+import seedrandom from 'seedrandom';
 
 class Map extends Component {
 	state = {};
 
 	componentDidMount() {
 		paper.setup('island');
-		var myIsland = new Island();
+		var myIsland = new GHIsland();
 		myIsland.init(0.6727562272746579);
+		let rng = seedrandom('hello.');
+		console.log('1', rng());
+		console.log('2', rng());
+		console.log('3', rng());
+		console.log('4', rng());
 	}
 	render() {
 		paper.install(window);
@@ -20,11 +26,7 @@ class Map extends Component {
 					<div id='scrollleft'></div>
 					<div id='scrollright'></div>
 					<div id='mapView'>
-						<canvas
-							id='island'
-							width={constants.dim}
-							height={constants.dim}
-						></canvas>
+						<canvas id='island' width={500} height={500}></canvas>
 					</div>
 					<div id='scrolldown'></div>
 				</div>
