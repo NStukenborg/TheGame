@@ -1,21 +1,25 @@
-import paper from 'paper';
+import paper, { Tool } from 'paper';
 import React, { Component } from 'react';
-import { constants } from './../constants/constants';
 import { GHIsland } from './../js/GHIsland';
-import seedrandom from 'seedrandom';
 
 class Map extends Component {
 	state = {};
 
 	componentDidMount() {
 		paper.setup('island');
-		var myIsland = new GHIsland();
+		let selectedCell;
+		let myIsland = new GHIsland();
 		myIsland.init(0.6727562272746579);
-		let rng = seedrandom('hello.');
-		console.log('1', rng());
-		console.log('2', rng());
-		console.log('3', rng());
-		console.log('4', rng());
+
+		const myTool = new Tool();
+		console.log(myIsland);
+		myTool.onMouseUp = function(event) {
+			let point = event.point;
+			selectedCell = myIsland.getSelectedCell(point /*, canvas.outerHeight()*/);
+			if (selectedCell) {
+				selectedCell.log();
+			}
+		};
 	}
 	render() {
 		paper.install(window);

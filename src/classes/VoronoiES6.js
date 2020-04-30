@@ -739,7 +739,7 @@ export class VoronoiES6 {
 			if (a instanceof this.Diagram) {
 				this.toRecycle = a;
 			} else {
-				throw 'Voronoi.recycleDiagram() > Need a Diagram object.';
+				throw new Error('Voronoi.recycleDiagram() > Need a Diagram object.');
 			}
 		}
 	};

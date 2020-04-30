@@ -1,6 +1,6 @@
 export const constants = {
 	//map constants
-	DIM: 25 * (5 - 1), //-1,
+	DIM: 500, //25 * (5 - 1), //-1,
 	CELL_WIDTH: 25,
 	PERLIN_DIM: 128,
 	CLIFF_THRESHOLD: 0.15,

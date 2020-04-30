@@ -38,10 +38,10 @@ export class Cell {
 			c;
 		while (b--) {
 			c = this.halfedges[b].edge;
-			if (c.lSite !== null && c.lSite.voronoiId != this.site.voronoiId) {
+			if (c.lSite && c.lSite.voronoiId !== this.site.voronoiId) {
 				a.push(c.lSite.voronoiId);
 			} else {
-				if (c.rSite !== null && c.rSite.voronoiId != this.site.voronoiId) {
+				if (c.rSite && c.rSite.voronoiId !== this.site.voronoiId) {
 					a.push(c.rSite.voronoiId);
 				}
 			}
@@ -97,5 +97,13 @@ export class Cell {
 			}
 		}
 		return 1;
+	};
+	log = () => {
+		console.log(
+			`elevation:${this.elevation} moisture:${this.moisture} biome:${
+				this.biome
+			}${this.river ? ' river:' + this.riverSize : ''}`,
+			this.site,
+		);
 	};
 }

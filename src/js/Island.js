@@ -117,7 +117,7 @@ export class Island {
 			lakes: new CellGroup(),
 			other: new CellGroup(),
 		};
-		this.assignOceanCoastAndLand();
+		this.assignOceanCoastAndLand(); /**<++>**/
 		this.assignRivers();
 		this.assignMoisture();
 		this.assignBiomes();

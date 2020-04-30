@@ -1,7 +1,15 @@
 import { VoronoiES6 } from 'classes/VoronoiES6';
-import paper, { Point, PointText, Path } from 'paper';
-import { perlin } from './perlin';
 import { constants } from 'constants/constants';
+import paper, { Path, Point, PointText } from 'paper';
+import { CellGroup } from './../classes/cellGroup';
+import {
+	decideBorderValue,
+	getCharOrder,
+	setD,
+	setM,
+	setO,
+} from './GHIslandFunctions';
+import { perlin } from './perlin';
 var DISPLAY_COLORS = {
 	OCEAN: new paper.Color('#82caff'),
 	BEACH: new paper.Color('#ffe98d'),
@@ -56,11 +64,12 @@ export class GHIsland {
 		this.cellsLayer = null;
 		this.riversLayer = null;
 		this.debugLayer = null;
-		this.myPerlin = null;
+		this.perlin = null;
+		this.delta = null;
 	}
 
 	init = function(sd) {
-		this.myPerlin = new perlin();
+		this.perlin = new perlin();
 		this.seed = sd || Math.random();
 
 		//create them in the order they will be displayed, first on the bottom
@@ -82,13 +91,16 @@ export class GHIsland {
 		this.perlinCanvas = document.getElementById('perlin');
 		this.perlinCanvas.width = this.config.perlinWidth;
 		this.perlinCanvas.height = this.config.perlinHeight;
-		this.perlin = this.myPerlin.perlinNoise(
-			this.perlinCanvas,
-			64,
-			64,
-			this.seed,
-		);
-		this.randomSites();
+		this.perlin = this.perlin.perlinNoise(this.perlinCanvas, 64, 64, this.seed);
+		this.delta = this.randomSites(); // build the diagram
+
+		this.diagram.cellGroups = {
+			impassD: new CellGroup(),
+			impassM: new CellGroup(),
+			ocean: new CellGroup(),
+			lakes: new CellGroup(),
+			other: new CellGroup(),
+		};
 
 		this.assignOceanCoastAndLand();
 		this.assignRivers();
@@ -99,51 +111,59 @@ export class GHIsland {
 	};
 
 	randomSites = function(n) {
-		var sites = [];
+		const order = getCharOrder();
+		let sites = [];
 
+		let mLocs = [];
 		// create vertices
-		if (this.config.sitesDistribution == 'random') {
-			for (var i = 0; i < this.config.nbSites; i++) {
-				sites.push({
-					x: Math.round(Math.random() * this.config.width),
-					y: Math.round(Math.random() * this.config.height),
-				});
-			}
-		} else {
-			var delta = Math.sqrt(
-				(this.config.width * this.config.height) / this.config.nbSites,
+		this.delta = Math.sqrt(
+			(this.config.width * this.config.height) / this.config.nbSites,
+		);
+		const rand = (this.config.sitesRandomisation * this.delta) / 100;
+		let x = 0;
+		let y = 0;
+		for (let i = 0; i < this.config.nbSites; i++) {
+			const curX = Math.max(
+				Math.min(
+					Math.round(x * this.delta + Math.random() * rand),
+					this.config.width,
+				),
+				0,
 			);
-			var rand = (this.config.sitesRandomisation * delta) / 100;
-			var x = 0;
-			var y = 0;
-			for (var i = 0; i < this.config.nbSites; i++) {
-				sites.push({
-					x: Math.max(
-						Math.min(
-							Math.round(x * delta + Math.random() * rand),
-							this.config.width,
-						),
-						0,
-					),
-					y: Math.max(
-						Math.min(
-							Math.round(y * delta + Math.random() * rand),
-							this.config.height,
-						),
-						0,
-					),
-				});
-				x = x + 1;
-				if (x * delta > this.config.width) {
-					x = y % 2 == 1 || this.config.sitesDistribution == 'square' ? 0 : 0.5;
-					y = y + 1;
-				}
+			const curY = Math.max(
+				Math.min(
+					Math.round(y * this.delta + Math.random() * rand),
+					this.config.height,
+				),
+				0,
+			);
+			const type = decideBorderValue(
+				this.delta,
+				curX,
+				curY,
+				order,
+				x,
+				y,
+				mLocs,
+			);
+			sites.push({
+				x: curX,
+				y: curY,
+				v: type,
+			});
+			x = x + 1;
+			if (x * this.delta > this.config.width) {
+				x = y % 2 === 1 ? 0 : 0.5;
+				y = y + 1;
 			}
 		}
+		mLocs.sort();
+
 		this.compute(sites);
 		for (var i = 0; i < this.config.nbGraphRelaxation; i++) {
 			this.relaxSites();
 		}
+		return this.delta;
 	};
 
 	compute = function(sites) {
@@ -236,78 +256,91 @@ export class GHIsland {
 
 	assignOceanCoastAndLand = function() {
 		// water
-		var queue = new Array();
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
+		let queue = [];
+		this.diagram.cells.forEach((cell) => {
 			cell.elevation = this.getElevation(cell.site);
 			cell.water = cell.elevation <= 0;
-			var numWater = 0;
-			for (var j = 0; j < cell.halfedges.length; j++) {
-				var hedge = cell.halfedges[j];
+
+			cell.halfedges.forEach((hedge) => {
 				// border
-				if (hedge.edge.rSite == null) {
+				if (!hedge.edge.rSite) {
 					cell.border = true;
-					cell.ocean = true;
-					cell.water = true;
-					if (cell.elevation > 0) {
-						cell.elevation = 0;
+					cell.outside = true;
+					// cell.ocean = true;
+					// cell.water = true;
+					// if (cell.elevation > 0) {
+					// 	cell.elevation = 0;
+					// }
+					if (cell.site.v === 'M') {
+						setM(cell);
+					} else if (cell.site.v === 'D') {
+						setD(cell);
+					} else {
+						setO(cell);
 					}
 					queue.push(cell);
 				}
-			}
-		}
+			});
+		});
 
-		// ocean
+		// impass
 		while (queue.length > 0) {
-			var cell = queue.shift();
-			var neighbors = cell.getNeighborIds();
-			for (var i = 0; i < neighbors.length; i++) {
-				var nId = neighbors[i];
-				var neighbor = this.diagram.cells[nId];
-				if (neighbor.water && !neighbor.ocean) {
-					neighbor.ocean = true;
-					queue.push(neighbor);
+			let cell = queue.shift(); // aka pop();
+			let neighbors = cell.getNeighborIds();
+			for (let i = 0; i < neighbors.length; i++) {
+				const nId = neighbors[i];
+				const neighbor = this.diagram.cells[nId];
+				if (cell.border) {
+					neighbor.outside = true;
+				}
+				const processed =
+					neighbor.ocean || neighbor.impassM || neighbor.impassD;
+				if (!processed) {
+					if (neighbor.water || neighbor.outside) {
+						if (neighbor.site.v === 'M') {
+							setM(neighbor);
+						} else if (neighbor.site.v === 'D') {
+							setD(neighbor);
+						} else {
+							setO(neighbor);
+						}
+						queue.push(neighbor);
+					}
 				}
 			}
 		}
-
 		// coast
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
-			var numOcean = 0;
-			var neighbors = cell.getNeighborIds();
-			for (var j = 0; j < neighbors.length; j++) {
-				var nId = neighbors[j];
-				var neighbor = this.diagram.cells[nId];
+		this.diagram.cells.forEach((cell) => {
+			let numOcean = 0;
+			let numImpass = 0;
+			let neighbors = cell.getNeighborIds();
+			neighbors.forEach((neighbor) => {
 				if (neighbor.ocean) {
 					numOcean++;
 				}
-			}
+				if (neighbor.impassD || neighbor.impassM) {
+					numImpass++;
+				}
+			});
+			cell.numOcean = numOcean;
 			cell.coast = numOcean > 0 && !cell.water;
-			cell.beach = cell.coast && cell.elevation < this.config.cliffsThreshold;
-		}
-
-		// cliff
-		for (var i = 0; i < this.diagram.edges.length; i++) {
-			var edge = this.diagram.edges[i];
-			if (edge.lSite != null && edge.rSite != null) {
-				var lCell = this.diagram.cells[edge.lSite.voronoiId];
-				var rCell = this.diagram.cells[edge.rSite.voronoiId];
-				edge.cliff =
-					!(lCell.water && rCell.water) &&
-					Math.abs(
-						this.getRealElevation(lCell) - this.getRealElevation(rCell),
-					) >= this.config.cliffsThreshold;
-			}
-		}
+			cell.beach =
+				cell.coast &&
+				cell.elevation < constants.CLIFF_THRESHOLD &&
+				!cell.impassD &&
+				!cell.impassM;
+		});
 	};
 
 	assignRivers = function() {
-		for (var i = 0; i < this.config.nbRivers; ) {
+		for (let i = 0; i < this.config.nbRivers; ) {
+			//this.nbSites / 50
 			var cell = this.diagram.cells[
 				this.getRandomInt(0, this.diagram.cells.length - 1)
 			];
-			if (!cell.coast) {
+			if (!cell.coast && !cell.impassD) {
+				//if (!cell.coast && !cell.impassD) {
+				//}&& !cell.impassM){
 				if (this.setAsRiver(cell, 1)) {
 					cell.source = true;
 					i++;
@@ -333,11 +366,15 @@ export class GHIsland {
 			if (lowerCell.elevation < cell.elevation) {
 				// we continue the river to the next lowest cell :
 				this.setAsRiver(lowerCell, size);
-				cell.nextRiver = lowerCell;
+				if (!cell.border) {
+					cell.nextRiver = lowerCell;
+				}
 			} else {
 				// we are in a hole, so we create a lake :
 				cell.water = true;
-				this.fillLake(cell);
+				if (!cell.border) {
+					this.fillLake(cell);
+				}
 			}
 		} else if (cell.water && !cell.ocean) {
 			// we ended in a lake, the water level rise :
@@ -358,12 +395,12 @@ export class GHIsland {
 	};
 
 	fillLake = function(cell) {
-		// if the lake has an exit river he can not longer be filled
-		if (cell.exitRiver == null) {
+		// if the lake has an exit river it can not longer be filled
+		if (!cell.exitRiver) {
 			var exitRiver = null;
 			var exitSource = null;
-			var lake = new Array();
-			var queue = new Array();
+			var lake = [];
+			var queue = [];
 			queue.push(cell);
 
 			while (queue.length > 0) {
@@ -377,7 +414,7 @@ export class GHIsland {
 					if (neighbor.water && !neighbor.ocean) {
 						// water cell from the same lake
 						if (
-							neighbor.lakeElevation == null ||
+							!neighbor.lakeElevation ||
 							neighbor.lakeElevation < c.lakeElevation
 						) {
 							neighbor.lakeElevation = c.lakeElevation;
@@ -395,10 +432,7 @@ export class GHIsland {
 						} else {
 							//neighbor.source = true;
 							// we found an new exit for the lake :
-							if (
-								exitRiver == null ||
-								exitRiver.elevation > neighbor.elevation
-							) {
+							if (!exitRiver || exitRiver.elevation > neighbor.elevation) {
 								exitSource = c;
 								exitRiver = neighbor;
 							}
@@ -414,7 +448,7 @@ export class GHIsland {
 				this.setAsRiver(exitRiver, 2);
 				// we mark all the lake as having an exit river :
 				while (lake.length > 0) {
-					var c = lake.shift();
+					let c = lake.shift();
 					c.exitRiver = exitRiver;
 				}
 			}
@@ -423,26 +457,31 @@ export class GHIsland {
 
 	// Calculate moisture. Freshwater sources spread moisture: rivers and lakes (not ocean).
 	assignMoisture = function() {
-		var queue = new Array();
+		let queue = [];
 		// lake and river
-		for (var i = 0; i < this.diagram.cells.length; i++) {
-			var cell = this.diagram.cells[i];
-			if ((cell.water || cell.river) && !cell.ocean) {
+		this.diagram.cells.forEach((cell) => {
+			if ((cell.water || cell.river) && !cell.ocean && !cell.impassD) {
 				cell.moisture = cell.water ? 1 : 0.9;
-				if (!cell.ocean) {
-					queue.push(cell);
-				}
+				queue.push(cell);
+			} else if (cell.ocean) {
+				cell.moisture = 1;
+			} else if (cell.impassD) {
+				cell.moisture = 0;
 			}
-		}
+		});
 
 		while (queue.length > 0) {
-			var cell = queue.shift();
-			var neighbors = cell.getNeighborIds();
-			for (var i = 0; i < neighbors.length; i++) {
-				var nId = neighbors[i];
-				var neighbor = this.diagram.cells[nId];
-				var newMoisture = cell.moisture * 0.9;
-				if (neighbor.moisture == null || newMoisture > neighbor.moisture) {
+			let cell = queue.shift();
+			let neighbors = cell.getNeighborIds();
+			for (let i = 0; i < neighbors.length; i++) {
+				const nId = neighbors[i];
+				let neighbor = this.diagram.cells[nId];
+				let newMoisture = cell.moisture * 0.9;
+				if (
+					(!neighbor.moisture || newMoisture > neighbor.moisture) &&
+					!neighbor.ocean &&
+					!neighbor.impassD
+				) {
 					neighbor.moisture = newMoisture;
 					queue.push(neighbor);
 				}
@@ -666,7 +705,7 @@ export class GHIsland {
 	};
 
 	getShade = function(cell) {
-		if (this.config.shading == 0) {
+		if (this.config.shading === 0) {
 			return 0;
 		} else if (cell.ocean) {
 			return this.config.shadeOcean ? -cell.elevation : 0;
@@ -716,5 +755,34 @@ export class GHIsland {
 		var dx = a.x - b.x,
 			dy = a.y - b.y;
 		return Math.sqrt(dx * dx + dy * dy);
+	};
+
+	getSelectedCell = function(point, realDim) {
+		const scale = constants.DIM / (realDim || 500); //adjust for possible zoom changes
+		point.x = point.x * scale;
+		point.y = point.y * scale;
+
+		if (point.x < constants.DIM && point.y < constants.DIM) {
+			let closest;
+			this.diagram.cells.forEach((cell) => {
+				const x = cell.site.x;
+				const y = cell.site.y;
+				if (
+					Math.abs(x - point.x) < this.delta / 2 &&
+					Math.abs(y - point.y) < this.delta / 2
+				) {
+					closest = cell;
+					return; //break
+				}
+			});
+
+			if (closest) {
+				return closest;
+			} else {
+				return null;
+			}
+		} else {
+			return null;
+		}
 	};
 }
